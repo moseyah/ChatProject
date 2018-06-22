@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -13,7 +14,6 @@ public class Server {
 
     public static void main(String[] args) throws IOException {
         new Server().start();
-
     }
 
     private void start() throws IOException {
@@ -26,6 +26,7 @@ public class Server {
             Socket client = server.accept();
 //            ui.getMessageBox().append("客户端连接成功！\n");
 //            String msg = "welcome";
+            new Thread(new ServerSend(client, ui)).start();
             MyChannel channel = new MyChannel(client, ui);
             all.add(channel);
             new Thread(channel).start();
@@ -33,12 +34,61 @@ public class Server {
 
     }
 
+    private class ServerSend implements Runnable {
+        private DataOutputStream dos;
+        private DataInputStream dis;
+        private UI ui;
+        private volatile boolean isRunning = true;
+
+        public ServerSend(Socket client, UI ui) {
+            this.ui = ui;
+            try {
+                dos=new DataOutputStream(client.getOutputStream());
+            } catch (IOException e) {
+                isRunning = false;
+                CloseUtil.closeAll(dis, dos);
+            }
+
+        }
+
+        public void serverSend(String info) {
+            if (info != null && !info.equals("") && ui.isSendFlag()) {
+                try {
+                    long time = System.currentTimeMillis();
+                    Date date = new Date(time);
+                    SimpleDateFormat sdf = new SimpleDateFormat(" MM-dd HH:mm:ss");
+                    dos.writeUTF("来自服务器消息：" + sdf.format(date) + "\n" + info + "\n\n");
+                    ui.getMessageBox().append("服务器本地消息 "+ sdf.format(date) + "\n" + info + "\n\n");
+                    dos.flush();
+                    ui.setSendFlag(false);
+                    ui.getInputBox().setText("");
+                } catch (IOException e) {
+                    isRunning = false;
+                    CloseUtil.closeAll(dos);
+                }
+            }
+        }
+        @Override
+        public void run() {
+            while (isRunning) {
+                serverSend(ui.getInputBox().getText());
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
     private class MyChannel implements Runnable {
         private DataOutputStream dos;
         private DataInputStream dis;
         private UI ui;
         private String name;
         private volatile boolean isRunning = true;
+        private DefaultListModel<String> onLines;
 
         public MyChannel(Socket client,UI ui) {
             this.ui = ui;
@@ -50,6 +100,7 @@ public class Server {
                 ui.getMessageBox().append("通知：" + this.name + "上线了。\n\n");
                 this.send("欢迎进入聊天室！\n");
                 sendOthers(this.name + "上线了。\n",true);
+                ui.getOnlines().addElement(this.name);
 
             } catch (IOException e) {
                 isRunning = false;
@@ -71,6 +122,7 @@ public class Server {
                 CloseUtil.closeAll(dis);
                 sendOthers(this.name+"下线了。\n",true);
                 ui.getMessageBox().append("通知：" + this.name + "下线了。\n\n");
+                ui.getOnlines().removeElement(this.name);
                 all.remove(this);
             }
             return "";
@@ -109,6 +161,14 @@ public class Server {
 //            }
         }
 
+        private void updateList() {
+            for (MyChannel others :
+                    all) {
+                others.send("^name&" + others.name);
+
+            }
+        }
+
         private void send(String msg) {
             if (msg == null || msg.equals(""))
                 return;
@@ -126,6 +186,7 @@ public class Server {
         public void run() {
             while (isRunning) {
                 sendOthers(this.receive(),false);
+                updateList();
             }
 
         }

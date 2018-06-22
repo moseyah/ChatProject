@@ -4,7 +4,31 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class UI extends JFrame {
+public class UI extends JFrame implements Runnable {
+    private JTextArea messageBox;
+    private JTextField inputBox;
+    private JButton sendButton;
+    private ListModel listModel;
+    private JList jList;
+    private DefaultListModel<String> onlines;
+    private volatile boolean sendFlag;
+
+    public JList getjList() {
+        return jList;
+    }
+
+    public void setjList(JList jList) {
+        this.jList = jList;
+    }
+
+    public DefaultListModel<String> getOnlines() {
+        return onlines;
+    }
+
+    public void setOnlines(DefaultListModel<String> onlines) {
+        this.onlines = onlines;
+    }
+
     public JTextArea getMessageBox() {
         return messageBox;
     }
@@ -20,16 +44,6 @@ public class UI extends JFrame {
     public void setInputBox(JTextField inputBox) {
         this.inputBox = inputBox;
     }
-
-    private JTextArea messageBox;
-    private JTextArea noticeBox;
-    private JTextField inputBox;
-    private JButton sendButton;
-    private ListModel listModel;
-    private JList jList;
-    private DefaultListModel<String> onlines;
-    private volatile boolean stop;
-    private volatile boolean sendFlag;
 
     public boolean isSendFlag() {
         return sendFlag;
@@ -69,5 +83,17 @@ public class UI extends JFrame {
                     sendFlag=true;
             }
         });
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            jList.setModel(onlines);
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

@@ -1,4 +1,4 @@
-import java.io.Closeable;
+import javax.swing.*;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -10,6 +10,7 @@ public class Send implements Runnable{
     private String name;
     private DataOutputStream dos;
     private UI ui;
+    private DefaultListModel<String> onLines;
     private volatile boolean isRunning = true;
 
     public Send(UI ui) {
@@ -19,9 +20,11 @@ public class Send implements Runnable{
 
     public Send(UI ui, Socket client, String name) {
         this.ui = ui;
+        this.onLines = ui.getOnlines();
         try {
             dos = new DataOutputStream(client.getOutputStream());
             this.name = name;
+            onLines.addElement(this.name);
             ui.setSendFlag(true);
             send(this.name);
             ui.setSendFlag(false);
@@ -56,6 +59,7 @@ public class Send implements Runnable{
     public void run() {
         while (isRunning) {
             send(ui.getInputBox().getText());
+//            ui.getjList().setModel(onLines);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
